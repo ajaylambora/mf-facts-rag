@@ -231,20 +231,27 @@ def groq_answer(query: str, hits):
 
 
 def mistral_answer(query: str, hits):
-    from mistralai import Mistral
+    """Mistral via plain REST (no SDK: immune to mistralai v1/v2 breakage)."""
+    import requests
 
     api_key = get_mistral_key()
     if not api_key:
         return None, "missing_key"
     urls, messages = _build_messages(query, hits)
-    client = Mistral(api_key=api_key)
-    resp = client.chat.complete(
-        model=MISTRAL_MODEL,
-        messages=messages,
-        temperature=0.1,
-        max_tokens=700,
+    r = requests.post(
+        "https://api.mistral.ai/v1/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={"model": MISTRAL_MODEL, "messages": messages,
+              "temperature": 0.1, "max_tokens": 700},
+        timeout=90,
     )
-    content = (resp.choices[0].message.content or "").strip()
+    if r.status_code != 200:
+        raise RuntimeError(f"mistral HTTP {r.status_code}: {r.text[:200]}")
+    data = r.json()
+    try:
+        content = (data["choices"][0]["message"]["content"] or "").strip()
+    except Exception:
+        raise RuntimeError(f"mistral bad payload: {str(data)[:200]}")
     return content, urls[0] if urls else ""
 
 
