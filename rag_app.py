@@ -282,8 +282,10 @@ def llm_answer(query: str, hits):
             errors.append("mistral: empty reply")
         except Exception as e:
             errors.append(f"mistral: {e}")
+    else:
+        errors.append("mistral: skipped (no MISTRAL_API_KEY set; add it in Secrets for automatic backup)")
     st.warning("LLM providers failed (%s); using offline extractive answer."
-               % "; ".join(errors)[:300])
+               % "; ".join(errors)[:400])
     return None, "", "provider_failed"
 
 
