@@ -1,0 +1,45 @@
+# Groww MF source links (36 unique fund pages + 4 official AMC/regulatory pages) — one URL per line, # lines ignored.
+# After editing, run:  python ingest.py   (rebuilds ./chroma_db)
+
+https://groww.in/mutual-funds/groww-silver-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-multicap-fund-direct-growth
+https://groww.in/mutual-funds/groww-small-cap-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-total-market-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-gold-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-value-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-india-defence-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-nifty-ev-new-age-automotive-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-nifty-smallcap-250-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-india-railways-psu-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-banking-financial-services-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-non-cyclical-consumer-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-smallcap-250-momentum-quality-100-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-overnight-fund-direct-growth
+https://groww.in/mutual-funds/groww-bse-hospitals-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-nifty-50-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-bse-power-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-nifty-capital-markets-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-multi-asset-allocation-fund-direct-growth
+https://groww.in/mutual-funds/groww-large-cap-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-midcap-150-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-india-internet-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-nifty-500-momentum-50-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-aggressive-hybrid-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-private-bank-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-money-market-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-pse-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-elss-tax-saver-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-next-50-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-psu-bank-index-fund-direct-growth
+https://groww.in/mutual-funds/groww-short-term-fund-direct-growth
+https://groww.in/mutual-funds/groww-nifty-200-etf-fof-direct-growth
+https://groww.in/mutual-funds/groww-arbitrage-fund-direct-growth
+https://groww.in/mutual-funds/groww-multi-asset-omni-fof-direct-growth
+https://groww.in/mutual-funds/groww-gilt-fund-direct-growth
+https://groww.in/mutual-funds/groww-dynamic-term-fund-direct-growth
+
+# --- Official pages (AMC + AMFI + SEBI): verified HTTP 200 with real readable content ---
+https://www.growwmf.in/
+https://www.amfiindia.com/ter-of-mf-schemes
+https://www.mutualfundssahihai.com/en
+https://investor.sebi.gov.in/riskometer.html
