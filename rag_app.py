@@ -26,6 +26,7 @@ CHROMA_DIR = os.getenv("CHROMA_DIR", str(BASE / "chroma_db"))
 COLLECTION = "mf_faq"
 EMBED_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
 AS_OF = "2026-09-04"
 EDU_TITLE, EDU_URL = "AMFI - Mutual Funds Sahi Hai (investor education)", "https://www.mutualfundssahihai.com/en"
 
@@ -187,12 +188,17 @@ def get_groq_key() -> str:
         return ""
 
 
-def groq_answer(query: str, hits):
-    from groq import Groq
+def get_mistral_key() -> str:
+    k = (os.getenv("MISTRAL_API_KEY") or "").strip()
+    if k:
+        return k
+    try:
+        return str(st.secrets.get("MISTRAL_API_KEY", "") or "").strip()
+    except Exception:
+        return ""
 
-    api_key = get_groq_key()
-    if not api_key:
-        return None, "missing_key"
+
+def _build_messages(query: str, hits):
     context = "\n\n".join(f"[S{i+1}] ({h['source_url']})\n{h['text'][:1500]}" for i, h in enumerate(hits))
     urls = [h["source_url"] for h in hits if h["source_url"]]
     user = (
@@ -200,15 +206,78 @@ def groq_answer(query: str, hits):
         f"Answer in <=3 sentences with exactly one line at the end: 'Source: <one of {urls}>'. "
         f"Today is {date.today().isoformat()}."
     )
+    return urls, [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user},
+    ]
+
+
+def groq_answer(query: str, hits):
+    from groq import Groq
+
+    api_key = get_groq_key()
+    if not api_key:
+        return None, "missing_key"
+    urls, messages = _build_messages(query, hits)
     client = Groq(api_key=api_key)
     resp = client.chat.completions.create(
         model=DEFAULT_GROQ_MODEL,
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
+        messages=messages,
         temperature=0.1,
         max_tokens=700,
     )
     content = (resp.choices[0].message.content or "").strip()
     return content, urls[0] if urls else ""
+
+
+def mistral_answer(query: str, hits):
+    from mistralai import Mistral
+
+    api_key = get_mistral_key()
+    if not api_key:
+        return None, "missing_key"
+    urls, messages = _build_messages(query, hits)
+    client = Mistral(api_key=api_key)
+    resp = client.chat.complete(
+        model=MISTRAL_MODEL,
+        messages=messages,
+        temperature=0.1,
+        max_tokens=700,
+    )
+    content = (resp.choices[0].message.content or "").strip()
+    return content, urls[0] if urls else ""
+
+
+def llm_answer(query: str, hits):
+    """Groq primary, Mistral automatic failover.
+
+    If Groq errors (rate limit, outage) or returns empty, retry once on
+    Mistral. Returns (text|None, first_url, provider|reason) where provider is
+    "groq", "mistral", "missing_key" (neither key set) or "provider_failed".
+    """
+    groq_key, mistral_key = get_groq_key(), get_mistral_key()
+    if not groq_key and not mistral_key:
+        return None, "", "missing_key"
+    errors = []
+    if groq_key:
+        try:
+            text, first_url = groq_answer(query, hits)
+            if text:
+                return text, first_url, "groq"
+            errors.append("groq: empty reply")
+        except Exception as e:
+            errors.append(f"groq: {e}")
+    if mistral_key:
+        try:
+            text, first_url = mistral_answer(query, hits)
+            if text:
+                return text, first_url, "mistral"
+            errors.append("mistral: empty reply")
+        except Exception as e:
+            errors.append(f"mistral: {e}")
+    st.warning("LLM providers failed (%s); using offline extractive answer."
+               % "; ".join(errors)[:300])
+    return None, "", "provider_failed"
 
 
 def extractive_fallback(query: str, hits):
@@ -381,21 +450,18 @@ with chat_main:
             else:
                 with st.spinner("Fetching verified answer with citation..."):
                     hits = retrieve(query, k=6)
-                    text, first_url = None, ""
-                    try:
-                        text, first_url = groq_answer(query, hits)
-                    except Exception as e:
-                        text = None
-                        st.warning(f"Groq call failed ({e}); using offline extractive answer.")
-                if not text:  # missing key, error, or empty reply -> offline fallback
-                    if first_url == "missing_key":
-                        st.caption("No GROQ_API_KEY found, showing offline extractive answer from Chroma.")
+                    text, first_url, provider = llm_answer(query, hits)
+                if not text:  # no keys, provider errors, or empty replies -> offline fallback
+                    if provider == "missing_key":
+                        st.caption("No GROQ_API_KEY or MISTRAL_API_KEY found, showing offline extractive answer from Chroma.")
                     text, title, url = extractive_fallback(query, hits)
                     out = f"{text}\n\nSource: [{title}]({url})\n\nLast updated from sources: {AS_OF}"
                 else:
                     # Ensure single citation + as-of line even if model drifts.
                     if "http" not in text and first_url:
                         text += f"\n\nSource: {first_url}"
+                    if provider == "mistral":
+                        text += "\n\n_Answered by backup provider (Mistral) after Groq was unavailable._"
                     out = text + f"\n\nLast updated from sources: {AS_OF}"
             st.markdown(out)
             st.session_state.messages.append({"role": "assistant", "content": out})

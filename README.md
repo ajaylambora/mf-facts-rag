@@ -2,7 +2,7 @@
 
 A Groww-styled FAQ chatbot that answers **factual** questions about **36 Groww Mutual Fund schemes** — expense ratio, exit load, minimum SIP, ELSS lock-in, riskometer, benchmark, AUM — grounded **only** in official pages. Every answer carries **one source citation**. No advice, no return predictions, no personal data.
 
-**Stack:** Streamlit UI · `all-MiniLM-L6-v2` embeddings · Chroma vector DB · Groq (`openai/gpt-oss-20b`)
+**Stack:** Streamlit UI · `all-MiniLM-L6-v2` embeddings · Chroma vector DB · Groq primary + Mistral automatic failover (`openai/gpt-oss-20b` / `mistral-small-latest`)
 
 ## UI preview
 
@@ -20,7 +20,8 @@ A Groww-styled FAQ chatbot that answers **factual** questions about **36 Groww M
 ```bash
 pip install -r requirements.txt
 
-# 1. API key → copy .env.example to .env and set GROQ_API_KEY
+# 1. API keys → copy .env.example to .env and set GROQ_API_KEY (answers first)
+#    and MISTRAL_API_KEY (automatic backup if Groq limits/errors)
 # 2. Build the index (re-run whenever sources.txt changes)
 python ingest.py --reset
 
