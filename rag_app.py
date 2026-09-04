@@ -138,7 +138,10 @@ def retrieve(query: str, k: int = 6):
     try:
         col = get_collection()
         if col.count() == 0:
-            return []
+            # Cloud hosts don't deploy chroma_db/: build the index on first use.
+            with st.spinner("First run: building the knowledge index from 40 official pages (one-time, a few minutes)..."):
+                from ingest import build_index, load_urls
+                build_index(col, get_embedder(), load_urls(), log=lambda *a, **k: None)
         model = get_embedder()
         vec = model.encode([query]).tolist()
         # If the query names a fund, scope ALL retrieval to that fund's page.

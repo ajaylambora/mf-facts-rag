@@ -158,6 +158,52 @@ def chunk_text(text: str, size: int = 700, overlap: int = 150, header: str = "")
     return out
 
 
+def build_index(col, model, urls, log=print):
+    """Fetch + chunk + embed urls into an open Chroma collection.
+
+    Shared by the CLI (main) and the Streamlit app (first-run auto-build on
+    hosts like Streamlit Cloud where chroma_db/ is not deployed).
+    Returns (n_chunks, n_pages_ok, failed_urls).
+    """
+    ids, docs, metas = [], [], []
+    ok, failed = 0, []
+    for i, url in enumerate(urls):
+        try:
+            title, text, fact_card = fetch_page(url)
+        except Exception as e:
+            log(f"  [skip] {url} -> {e}")
+            failed.append(url)
+            continue
+        header = f"[{title} | {url}]"
+        page_chunks = []
+        if fact_card:  # structured numbers first: always retrievable as one unit
+            page_chunks.append(f"{header} {fact_card}")
+        page_chunks += chunk_text(text, header=header)
+        for j, ch in enumerate(page_chunks):
+            ids.append(f"doc{i}-c{j}")
+            docs.append(ch)
+            metas.append({"source_url": url, "doc_id": i, "chunk": j,
+                          "kind": "fact_card" if j == 0 and fact_card else "text"})
+        ok += 1
+        log(f"  [{ok}/{len(urls)}] {url} -> {len(page_chunks)} chunks"
+            f"{' (incl. fact card)' if fact_card else ''}")
+
+    if not docs:
+        raise RuntimeError("Nothing to index. Check sources.txt / network.")
+
+    log(f"Embedding {len(docs)} chunks with {EMBED_MODEL} ...")
+    vectors = model.encode(docs, batch_size=32, show_progress_bar=False).tolist()
+
+    # Replace existing docs with same ids (idempotent re-ingest).
+    try:
+        col.delete(ids=ids)
+    except Exception:
+        pass
+    col.add(ids=ids, documents=docs, metadatas=metas, embeddings=vectors)
+    log(f"Done. Indexed {len(docs)} chunks from {ok} pages into {CHROMA_DIR} (collection '{COLLECTION}').")
+    return len(docs), ok, failed
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--reset", action="store_true", help="delete ./chroma_db before rebuild")
@@ -182,43 +228,7 @@ def main():
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
     col = client.get_or_create_collection(name=COLLECTION, metadata={"hnsw:space": "cosine"})
 
-    ids, docs, metas = [], [], []
-    ok, failed = 0, []
-    for i, url in enumerate(urls):
-        try:
-            title, text, fact_card = fetch_page(url)
-        except Exception as e:
-            print(f"  [skip] {url} -> {e}")
-            failed.append(url)
-            continue
-        header = f"[{title} | {url}]"
-        page_chunks = []
-        if fact_card:  # structured numbers first: always retrievable as one unit
-            page_chunks.append(f"{header} {fact_card}")
-        page_chunks += chunk_text(text, header=header)
-        for j, ch in enumerate(page_chunks):
-            ids.append(f"doc{i}-c{j}")
-            docs.append(ch)
-            metas.append({"source_url": url, "doc_id": i, "chunk": j,
-                          "kind": "fact_card" if j == 0 and fact_card else "text"})
-        ok += 1
-        print(f"  [{ok}/{len(urls)}] {url} -> {len(page_chunks)} chunks"
-              f"{' (incl. fact card)' if fact_card else ''}")
-
-    if not docs:
-        print("Nothing to index. Check sources.txt / network.")
-        sys.exit(1)
-
-    print(f"Embedding {len(docs)} chunks with {EMBED_MODEL} ...")
-    vectors = model.encode(docs, batch_size=32, show_progress_bar=False).tolist()
-
-    # Replace existing docs with same ids (idempotent re-ingest).
-    try:
-        col.delete(ids=ids)
-    except Exception:
-        pass
-    col.add(ids=ids, documents=docs, metadatas=metas, embeddings=vectors)
-    print(f"Done. Indexed {len(docs)} chunks from {ok} pages into {CHROMA_DIR} (collection '{COLLECTION}').")
+    n_chunks, ok, failed = build_index(col, model, urls)
     if failed:
         print(f"Skipped {len(failed)} URL(s). Re-run later or replace them in sources.txt:")
         for u in failed:
