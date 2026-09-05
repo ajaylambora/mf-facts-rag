@@ -1,5 +1,5 @@
 """
-MF Facts-Only RAG Chatbot (Streamlit + all-MiniLM-L6-v2 + Chroma + Groq).
+MF Facts-Only RAG Chatbot (Streamlit + all-MiniLM-L6-v2 + Chroma + Groq with Mistral failover).
 
 Run:
   pip install -r requirements.txt
@@ -8,9 +8,9 @@ Run:
 
 Keys / sources, where to put them:
   1. Source links -> sources.txt (one URL per line), then re-run `python ingest.py`.
-  2. Groq key     -> EITHER .env file (GROQ_API_KEY=...) in this folder,
-                     OR Streamlit Secrets (.streamlit/secrets.toml),
-                     OR paste it in the sidebar at runtime (not stored).
+  2. Groq key (primary) and Mistral key (automatic backup) -> EITHER .env file
+                      (GROQ_API_KEY=... and MISTRAL_API_KEY=...) in this folder,
+                      OR Streamlit Secrets (.streamlit/secrets.toml).
 """
 import os
 import re
